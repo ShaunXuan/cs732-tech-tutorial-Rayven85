@@ -1,0 +1,12 @@
+# Web framework / API 框架
+fastapi==0.115.5
+
+# ASGI server to run FastAPI / 运行 FastAPI 的 ASGI 服务器
+uvicorn[standard]==0.32.1
+
+# Data validation (bundled with FastAPI) / 数据验证库（FastAPI 内置依赖）
+pydantic==2.10.3
+
+# Testing / 测试
+pytest==8.3.4
+httpx==0.28.1

@@ -1,0 +1,32 @@
+# Python / 虚拟环境
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+venv/
+.venv/
+env/
+ENV/
+
+# 依赖安装目录
+*.egg-info/
+dist/
+build/
+
+# 测试缓存 / Test cache
+.pytest_cache/
+.coverage
+htmlcov/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# 环境变量文件 / Environment variables
+.env
+.env.local
+
+# macOS
+.DS_Store
