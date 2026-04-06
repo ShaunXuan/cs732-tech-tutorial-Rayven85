@@ -27,19 +27,28 @@ router = APIRouter(prefix="/tasks", tags=["Tasks"])
     summary="List all tasks",
     description=(
         "Retrieve all tasks. "
-        "Optionally filter by **course** or **completed** status, "
-        "and sort by **due_date**, **priority**, or **created_at**."
+        "Optionally filter by **course**, **completed** status, or **priority**, "
+        "search by **keyword**, and sort by **due_date**, **priority**, or **created_at**."
     ),
 )
 def list_tasks(
     course: Optional[str] = Query(
         default=None,
-        description="Filter by course code (e.g. COMPSCI732)",
-        examples=["COMPSCI732"],
+        description="Filter by course prefix — e.g. 'COMPSCI' matches COMPSCI732, COMPSCI369, etc.",
+        examples=["COMPSCI"],
     ),
     completed: Optional[bool] = Query(
         default=None,
         description="Filter by completion status (true / false)",
+    ),
+    priority: Optional[Literal["low", "medium", "high"]] = Query(
+        default=None,
+        description="Filter by priority level",
+    ),
+    search: Optional[str] = Query(
+        default=None,
+        description="Keyword search across title and description",
+        examples=["report"],
     ),
     sort_by: Optional[Literal["due_date", "priority", "created_at"]] = Query(
         default=None,
@@ -48,9 +57,15 @@ def list_tasks(
 ):
     """
     Return a list of tasks.
-    返回任务列表，支持过滤和排序。
+    返回任务列表，支持过滤、搜索和排序。
     """
-    tasks = service.list_tasks(course=course, completed=completed, sort_by=sort_by)
+    tasks = service.list_tasks(
+        course=course,
+        completed=completed,
+        priority=priority,
+        search=search,
+        sort_by=sort_by,
+    )
     # Convert internal Task objects to response schema
     # 将内部 Task 对象转换为响应 schema 格式
     return [TaskResponse.model_validate(t.__dict__) for t in tasks]

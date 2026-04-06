@@ -1,45 +1,71 @@
 /**
- * TaskCard — displays a single task with actions.
- * TaskCard 组件 —— 展示单条任务，包含完成勾选和删除按钮。
+ * TaskCard — compact single-row task display (layout option 5.A).
+ * 任务卡片组件 —— 紧凑单行布局：标题和元信息在同一行。
  */
-export default function TaskCard({ task, onToggle, onDelete }) {
-  // Format ISO date string to readable format / 将 ISO 日期格式化为可读格式
-  const formattedDate = new Date(task.due_date + "T00:00:00").toLocaleDateString("en-NZ", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
+import { BookOpen, Calendar, Trash2 } from "lucide-react";
+
+// Calculate days until due date / 计算距截止日期的天数
+function daysUntil(dueDateStr) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const due = new Date(dueDateStr + "T00:00:00");
+  return Math.round((due - today) / (1000 * 60 * 60 * 24));
+}
+
+function dueDateInfo(dueDateStr) {
+  const days = daysUntil(dueDateStr);
+  const formatted = new Date(dueDateStr + "T00:00:00").toLocaleDateString("en-NZ", {
+    day: "numeric", month: "short", year: "numeric",
   });
+  if (days < 0)  return { text: `${formatted} — overdue`, cls: "due-overdue" };
+  if (days === 0) return { text: `${formatted} — today`,   cls: "due-today" };
+  if (days <= 3)  return { text: `${formatted} — ${days}d left`, cls: "due-soon" };
+  return { text: formatted, cls: "due-normal" };
+}
+
+export default function TaskCard({ task, onToggle, onDelete, onSelect }) {
+  const { text: dateText, cls: dateCls } = dueDateInfo(task.due_date);
 
   return (
-    <div className={`task-card ${task.completed ? "completed" : ""}`}>
-      {/* Completed checkbox — calls PUT /tasks/{id} via onToggle */}
-      {/* 完成勾选框 —— 触发 PUT /tasks/{id} 请求 */}
+    // Click the card body to open detail modal / 点击卡片打开详情弹窗
+    <div
+      className={`task-card priority-border-${task.priority} ${task.completed ? "completed" : ""}`}
+      onClick={() => onSelect(task)}
+    >
+      {/* Checkbox — stopPropagation so card click doesn't fire / 阻止冒泡，避免触发卡片点击 */}
       <input
         type="checkbox"
+        className="task-checkbox"
         checked={task.completed}
         onChange={() => onToggle(task.id, task.completed)}
+        onClick={(e) => e.stopPropagation()}
         aria-label={`Mark "${task.title}" as ${task.completed ? "incomplete" : "complete"}`}
       />
 
-      <div className="task-info">
-        <div className="task-title">{task.title}</div>
-        <div className="task-meta">
-          <span>{task.course}</span>
-          <span>Due: {formattedDate}</span>
-          {/* Priority badge with colour by level / 按优先级显示不同颜色徽标 */}
-          <span className={`badge badge-${task.priority}`}>{task.priority}</span>
-        </div>
+      {/* Title / 标题 */}
+      <span className="task-title">{task.title}</span>
+
+      {/* Meta / 元信息 */}
+      <div className="task-meta">
+        <span className="meta-item">
+          <BookOpen size={11} />
+          {task.course}
+        </span>
+        <span className={`meta-item ${dateCls}`}>
+          <Calendar size={11} />
+          {dateText}
+        </span>
+        <span className={`badge badge-${task.priority}`}>{task.priority}</span>
       </div>
 
-      {/* Delete button — calls DELETE /tasks/{id} */}
-      {/* 删除按钮 —— 触发 DELETE /tasks/{id} 请求 */}
+      {/* Delete — stopPropagation so modal doesn't open / 删除按钮，阻止冒泡 */}
       <button
         className="btn-delete"
-        onClick={() => onDelete(task.id)}
+        onClick={(e) => { e.stopPropagation(); onDelete(task.id); }}
         aria-label={`Delete "${task.title}"`}
         title="Delete task"
       >
-        ✕
+        <Trash2 size={14} />
       </button>
     </div>
   );

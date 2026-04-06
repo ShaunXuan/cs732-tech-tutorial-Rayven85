@@ -1,25 +1,23 @@
 /**
- * AddTaskForm — controlled form for creating a new task.
- * AddTaskForm 组件 —— 受控表单，用于创建新任务。
- *
- * On submit, calls createTask() via the onSubmit prop,
- * which sends a POST request to FastAPI.
- * 提交时调用父组件传入的 onSubmit，最终发送 POST 请求到 FastAPI。
+ * AddTaskForm — collapsible form for creating a new task.
+ * 可折叠的创建任务表单组件。
  */
 import { useState } from "react";
+import { Plus, X } from "lucide-react";
 
-// Default form state / 表单默认值
 const INITIAL = {
   title: "",
   course: "",
   due_date: "",
   priority: "medium",
+  description: "",
 };
 
 export default function AddTaskForm({ onSubmit }) {
   const [form, setForm] = useState(INITIAL);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [open, setOpen] = useState(false);
 
   function handleChange(e) {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
@@ -29,8 +27,6 @@ export default function AddTaskForm({ onSubmit }) {
     e.preventDefault();
     setError("");
 
-    // Basic client-side check before sending to FastAPI
-    // FastAPI 也会验证，但先做一次简单的前端检查
     if (!form.title.trim() || !form.course.trim() || !form.due_date) {
       setError("Title, course, and due date are required.");
       return;
@@ -38,9 +34,13 @@ export default function AddTaskForm({ onSubmit }) {
 
     setSubmitting(true);
     try {
-      await onSubmit(form);
-      setForm(INITIAL); // Reset form on success / 成功后重置表单
-    } catch (err) {
+      await onSubmit({
+        ...form,
+        description: form.description.trim() || null,
+      });
+      setForm(INITIAL);
+      setOpen(false);
+    } catch {
       setError("Failed to create task. Please check your input.");
     } finally {
       setSubmitting(false);
@@ -48,50 +48,67 @@ export default function AddTaskForm({ onSubmit }) {
   }
 
   return (
-    <form className="add-task-form" onSubmit={handleSubmit}>
-      <h2>Add New Task</h2>
+    <div className="add-task-panel">
+      <button className="btn-toggle-form" onClick={() => setOpen((o) => !o)}>
+        {open
+          ? <><X size={14} /> Cancel</>
+          : <><Plus size={14} /> Add New Task</>
+        }
+      </button>
 
-      <div className="form-row">
-        {/* Title field / 标题输入 */}
-        <input
-          name="title"
-          value={form.title}
-          onChange={handleChange}
-          placeholder="Task title *"
-          maxLength={200}
-        />
-        {/* Course field / 课程代码输入 */}
-        <input
-          name="course"
-          value={form.course}
-          onChange={handleChange}
-          placeholder="Course (e.g. COMPSCI732) *"
-          maxLength={50}
-        />
-      </div>
+      {open && (
+        <form className="add-task-form" onSubmit={handleSubmit}>
+          <div className="form-row">
+            <input
+              name="title"
+              value={form.title}
+              onChange={handleChange}
+              placeholder="Task title *"
+              maxLength={200}
+              className="form-input"
+            />
+            <input
+              name="course"
+              value={form.course}
+              onChange={handleChange}
+              placeholder="Course code * (e.g. COMPSCI732)"
+              maxLength={50}
+              className="form-input"
+            />
+          </div>
 
-      <div className="form-row">
-        {/* Due date field / 截止日期 */}
-        <input
-          name="due_date"
-          type="date"
-          value={form.due_date}
-          onChange={handleChange}
-        />
-        {/* Priority selector — mirrors the FastAPI Literal enum / 优先级选择器 */}
-        <select name="priority" value={form.priority} onChange={handleChange}>
-          <option value="low">Low</option>
-          <option value="medium">Medium</option>
-          <option value="high">High</option>
-        </select>
+          <textarea
+            name="description"
+            value={form.description}
+            onChange={handleChange}
+            placeholder="Description (optional)"
+            maxLength={1000}
+            rows={2}
+            className="form-textarea"
+          />
 
-        <button type="submit" className="btn-add" disabled={submitting}>
-          {submitting ? "Adding…" : "+ Add Task"}
-        </button>
-      </div>
+          <div className="form-row">
+            <input
+              name="due_date"
+              type="date"
+              value={form.due_date}
+              onChange={handleChange}
+              className="form-input"
+            />
+            <select name="priority" value={form.priority} onChange={handleChange} className="form-select">
+              <option value="low">Low priority</option>
+              <option value="medium">Medium priority</option>
+              <option value="high">High priority</option>
+            </select>
+            <button type="submit" className="btn-add" disabled={submitting}>
+              <Plus size={14} />
+              {submitting ? "Adding…" : "Add Task"}
+            </button>
+          </div>
 
-      {/* Show error from FastAPI or client validation / 显示来自 FastAPI 或客户端的错误 */}
-      {error && <p className="form-error">{error}</p>}
-    </form>
+          {error && <p className="form-error">{error}</p>}
+        </form>
+      )}
+    </div>
   );
 }

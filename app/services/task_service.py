@@ -21,21 +21,37 @@ PRIORITY_ORDER: dict[str, int] = {"low": 0, "medium": 1, "high": 2}
 def list_tasks(
     course: Optional[str] = None,
     completed: Optional[bool] = None,
+    priority: Optional[Literal["low", "medium", "high"]] = None,
+    search: Optional[str] = None,
     sort_by: Optional[Literal["due_date", "priority", "created_at"]] = None,
 ) -> list[Task]:
     """
     Return all tasks, optionally filtered and sorted.
-    返回所有任务，支持按课程、完成状态过滤，以及按字段排序。
+    返回所有任务，支持按课程、完成状态、优先级过滤，关键词搜索，以及按字段排序。
     """
     tasks = store.get_all()
 
-    # Filter by course (case-insensitive) / 按课程过滤（忽略大小写）
+    # Filter by course prefix (case-insensitive) — e.g. "COMPSCI" matches "COMPSCI732"
+    # 按课程前缀过滤（忽略大小写）—— 如 "COMPSCI" 可匹配 "COMPSCI732"、"COMPSCI369" 等
     if course is not None:
-        tasks = [t for t in tasks if t.course.lower() == course.lower()]
+        tasks = [t for t in tasks if t.course.upper().startswith(course.upper())]
 
     # Filter by completion status / 按完成状态过滤
     if completed is not None:
         tasks = [t for t in tasks if t.completed == completed]
+
+    # Filter by priority level / 按优先级过滤
+    if priority is not None:
+        tasks = [t for t in tasks if t.priority == priority]
+
+    # Keyword search across title and description / 在标题和描述中进行关键词搜索
+    if search is not None:
+        keyword = search.lower()
+        tasks = [
+            t for t in tasks
+            if keyword in t.title.lower()
+            or (t.description and keyword in t.description.lower())
+        ]
 
     # Sort results / 排序
     if sort_by == "due_date":

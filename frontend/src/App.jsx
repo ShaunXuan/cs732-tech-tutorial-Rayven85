@@ -1,97 +1,125 @@
 /**
- * App — root component, manages global task state.
- * App 根组件 —— 负责管理全局任务状态和与后端的交互。
- *
- * State lives here so all child components share the same data.
- * 状态放在顶层，让所有子组件共享同一份数据。
+ * App — root component, manages global state.
+ * App 根组件 —— 管理全局状态，协调所有子组件。
  */
 import { useEffect, useState } from "react";
-import { fetchTasks, fetchStats, createTask, toggleComplete, deleteTask } from "./api";
+import { ExternalLink } from "lucide-react";
+import {
+  fetchTasks, fetchStats, fetchUpcoming,
+  createTask, toggleComplete, deleteTask,
+} from "./api";
+import StatsCards from "./components/StatsCards";
+import FilterBar from "./components/FilterBar";
 import TaskList from "./components/TaskList";
 import AddTaskForm from "./components/AddTaskForm";
+import TaskModal from "./components/TaskModal";
+
+const EMPTY_FILTERS = {
+  search: "", course: "", priority: "", completed: "", sort_by: "",
+};
 
 export default function App() {
   const [tasks, setTasks] = useState([]);
+  const [upcoming, setUpcoming] = useState([]);
   const [stats, setStats] = useState(null);
+  const [filters, setFilters] = useState(EMPTY_FILTERS);
+  const [selectedTask, setSelectedTask] = useState(null); // modal state / 弹窗状态
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
 
-  // Load tasks and stats from FastAPI on mount
-  // 组件挂载时从 FastAPI 加载任务和统计数据
-  useEffect(() => {
-    loadAll();
-  }, []);
+  useEffect(() => { loadAll(EMPTY_FILTERS); }, []);
 
-  async function loadAll() {
+  async function loadAll(currentFilters) {
     setLoading(true);
     setError("");
     try {
-      const [taskData, statsData] = await Promise.all([fetchTasks(), fetchStats()]);
+      // Parallel requests to FastAPI / 并行发出三个 FastAPI 请求
+      const [taskData, statsData, upcomingData] = await Promise.all([
+        fetchTasks(currentFilters),
+        fetchStats(),
+        fetchUpcoming(),
+      ]);
       setTasks(taskData);
       setStats(statsData);
+      setUpcoming(upcomingData);
     } catch {
-      setError("Could not connect to the API. Is the backend running?");
+      setError("Could not connect to the API. Is the FastAPI backend running on port 8000?");
     } finally {
       setLoading(false);
     }
   }
 
-  // Create a new task and refresh the list
-  // 创建新任务后刷新列表
+  function handleFilterChange(newFilters) {
+    setFilters(newFilters);
+    loadAll(newFilters);
+  }
+
   async function handleCreate(formData) {
     await createTask(formData);
-    await loadAll();
+    await loadAll(filters);
   }
 
-  // Toggle completed status of a task
-  // 切换任务完成状态
   async function handleToggle(taskId, currentCompleted) {
     await toggleComplete(taskId, !currentCompleted);
-    await loadAll();
+    await loadAll(filters);
   }
 
-  // Delete a task and refresh
-  // 删除任务后刷新
   async function handleDelete(taskId) {
     await deleteTask(taskId);
-    await loadAll();
+    if (selectedTask?.id === taskId) setSelectedTask(null); // close modal if deleted task was open
+    await loadAll(filters);
   }
+
+  const courses = stats?.courses ?? [];
 
   return (
     <div className="app">
+      {/* Header (3.B — light, matches page bg) / 轻色 Header，与页面背景色一致 */}
       <header className="app-header">
-        <h1>Student Task Manager</h1>
-        <p className="app-subtitle">Powered by FastAPI + React</p>
+        <div className="header-inner">
+          <div>
+            <h1 className="app-title">Student Task Manager</h1>
+            <p className="app-subtitle">FastAPI + React · COMPSCI732</p>
+          </div>
+          <a
+            href="http://localhost:8000/docs"
+            target="_blank"
+            rel="noreferrer"
+            className="docs-link"
+          >
+            API Docs
+            <ExternalLink size={12} />
+          </a>
+        </div>
       </header>
 
       <main className="app-main">
-        {/* Stats bar / 统计栏 */}
-        {stats && (
-          <div className="stats-bar">
-            <span>Total: <strong>{stats.total}</strong></span>
-            <span>Completed: <strong>{stats.completed}</strong></span>
-            <span>Pending: <strong>{stats.pending}</strong></span>
-            <span>Completion: <strong>{stats.completion_rate}%</strong></span>
-          </div>
-        )}
-
-        {/* Add task form / 创建任务表单 */}
+        <StatsCards stats={stats} />
         <AddTaskForm onSubmit={handleCreate} />
+        <FilterBar filters={filters} onChange={handleFilterChange} courses={courses} />
 
-        {/* Error message / 错误信息 */}
-        {error && <p className="error-msg">{error}</p>}
+        {error && <div className="error-banner">{error}</div>}
 
-        {/* Task list / 任务列表 */}
         {loading ? (
-          <p className="loading">Loading tasks...</p>
+          <div className="loading-state">
+            <div className="spinner" />
+            <p>Loading tasks…</p>
+          </div>
         ) : (
           <TaskList
             tasks={tasks}
+            upcoming={upcoming}
             onToggle={handleToggle}
             onDelete={handleDelete}
+            onSelect={setSelectedTask}
           />
         )}
       </main>
+
+      {/* Task detail modal — shown when a card is clicked / 点击卡片后显示的详情弹窗 */}
+      {selectedTask && (
+        <TaskModal task={selectedTask} onClose={() => setSelectedTask(null)} />
+      )}
     </div>
   );
 }
