@@ -7,6 +7,7 @@ from contextlib import asynccontextmanager
 from datetime import date, datetime
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.routers.tasks import router as tasks_router
 import app.storage.in_memory as store
@@ -80,6 +81,19 @@ app = FastAPI(
     ),
     version="1.0.0",
     lifespan=lifespan,
+)
+
+# ---------------------------------------------------------------------------
+# CORS — allow the React frontend (localhost:5173) to call this API
+# 跨域配置 —— 允许 React 前端（localhost:5173）访问此 API
+# Without this, browsers block cross-origin requests by default.
+# 没有这个配置，浏览器会默认拒绝跨域请求。
+# ---------------------------------------------------------------------------
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],  # Vite dev server origin / Vite 开发服务器地址
+    allow_methods=["*"],   # Allow GET, POST, PUT, DELETE etc. / 允许所有 HTTP 方法
+    allow_headers=["*"],   # Allow all request headers / 允许所有请求头
 )
 
 # Register the tasks router / 注册任务路由

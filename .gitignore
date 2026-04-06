@@ -28,5 +28,11 @@ htmlcov/
 .env
 .env.local
 
+# Node / React frontend — MUST NOT commit node_modules per assignment rules
+# 作业要求：绝对不能提交 node_modules 文件夹
+node_modules/
+frontend/dist/
+frontend/.vite/
+
 # macOS
 .DS_Store

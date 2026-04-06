@@ -3,8 +3,8 @@
 **COMPSCI732 Tech Tutorial — University of Auckland**
 **Student:** Rayven85
 
-A RESTful API for managing student assignments and tasks, built with **FastAPI** (Python).
-This project demonstrates core FastAPI concepts: request validation with Pydantic, automatic OpenAPI documentation, clean project structure, and a full CRUD API.
+A full-stack project: a **FastAPI** (Python) backend connected to a **React** (Vite) frontend.
+This project demonstrates core FastAPI concepts: request validation with Pydantic, automatic OpenAPI documentation, CORS configuration, and how to hook up a React frontend to a Python API backend.
 
 ---
 
@@ -16,8 +16,10 @@ This project demonstrates core FastAPI concepts: request validation with Pydanti
 4. [Project Structure](#4-project-structure)
 5. [Setup & Installation](#5-setup--installation)
 6. [Running the API](#6-running-the-api)
-7. [API Design](#7-api-design)
-8. [How Request Validation Works](#8-how-request-validation-works)
+7. [Running the React Frontend](#7-running-the-react-frontend)
+8. [How CORS Works](#8-how-cors-works)
+9. [API Design](#9-api-design)
+10. [How Request Validation Works](#10-how-request-validation-works)
 9. [Automatic API Docs (`/docs`)](#9-automatic-api-docs-docs)
 10. [Example Requests](#10-example-requests)
 11. [Running Tests](#11-running-tests)
@@ -76,37 +78,53 @@ Both FastAPI and Express are popular choices for building REST APIs. Here is a p
 ## 4. Project Structure
 
 ```
-student-task-manager/
-├── app/
-│   ├── main.py              # FastAPI app instance, router registration, seed data
+cs732-tech-tutorial-Rayven85/
+├── app/                         # FastAPI backend
+│   ├── main.py                  # App instance, CORS, router registration, seed data
 │   ├── models/
-│   │   └── task.py          # Internal Task class (data layer)
+│   │   └── task.py              # Internal Task class (data layer)
 │   ├── schemas/
-│   │   └── task.py          # Pydantic schemas: TaskCreate, TaskUpdate, TaskResponse
+│   │   └── task.py              # Pydantic schemas: TaskCreate, TaskUpdate, TaskResponse
 │   ├── routers/
-│   │   └── tasks.py         # All /tasks API endpoints
+│   │   └── tasks.py             # All /tasks API endpoints
 │   ├── services/
-│   │   └── task_service.py  # Business logic: filter, sort, CRUD operations
+│   │   └── task_service.py      # Business logic: filter, sort, CRUD operations
 │   └── storage/
-│       └── in_memory.py     # In-memory data store (Python dict)
+│       └── in_memory.py         # In-memory data store (Python dict)
+├── frontend/                    # React frontend (Vite)
+│   ├── index.html
+│   ├── package.json
+│   ├── vite.config.js
+│   └── src/
+│       ├── main.jsx             # React entry point
+│       ├── App.jsx              # Root component, state management
+│       ├── App.css              # Global styles
+│       ├── api.js               # All fetch() calls to FastAPI
+│       └── components/
+│           ├── TaskList.jsx     # Renders the task list
+│           ├── TaskCard.jsx     # Single task row with complete/delete
+│           └── AddTaskForm.jsx  # Form to create a new task
 ├── tests/
-│   └── test_tasks.py        # pytest test suite
+│   └── test_tasks.py            # pytest test suite
 ├── requirements.txt
 ├── .gitignore
 └── README.md
 ```
 
-**Architecture layers:**
+**Architecture:**
 
 ```
-Request → Router → Service → Storage
-Response ← Router ← Service ← Storage
+React (localhost:5173)
+    ↕  fetch() via CORS
+FastAPI (localhost:8000)
+    └── Router → Service → In-Memory Storage
 ```
 
 - **Router**: Handles HTTP — parses request, validates input via schema, returns response
 - **Service**: Handles business logic — filtering, sorting, error raising
-- **Storage**: Handles data — simple dict-based in-memory store
+- **Storage**: Simple dict-based in-memory store
 - **Schemas**: Pydantic models that define the shape of API inputs and outputs
+- **api.js**: All fetch calls to FastAPI in one place — keeps React components clean
 
 ---
 
@@ -147,6 +165,8 @@ pip install -r requirements.txt
 
 ## 6. Running the API
 
+> **Note:** Run the backend first, then start the frontend in a separate terminal.
+
 ```bash
 uvicorn app.main:app --reload
 ```
@@ -162,7 +182,68 @@ The `--reload` flag automatically restarts the server when you change code — i
 
 ---
 
-## 7. API Design
+## 7. Running the React Frontend
+
+### Prerequisites
+
+- Node.js 18 or higher
+
+### Steps
+
+```bash
+# Move into the frontend directory
+cd frontend
+
+# Install dependencies
+npm install
+
+# Start the dev server
+npm run dev
+```
+
+The frontend will be available at `http://localhost:5173`.
+
+**The FastAPI backend must be running first** (on `localhost:8000`) before the frontend can load any data.
+
+### What the frontend demonstrates
+
+- Fetching data from a Python API using `fetch()` in React
+- Displaying a live task list with real backend data
+- Creating tasks via a form (POST to FastAPI, with Pydantic validation)
+- Marking tasks complete (PUT to FastAPI)
+- Deleting tasks (DELETE to FastAPI)
+- A stats bar that reads from `GET /tasks/stats`
+
+---
+
+## 8. How CORS Works
+
+**CORS (Cross-Origin Resource Sharing)** is a browser security mechanism that blocks requests from a different origin (domain + port) unless the server explicitly allows it.
+
+In this project:
+- The React frontend runs on `http://localhost:5173`
+- The FastAPI backend runs on `http://localhost:8000`
+
+These are **different origins**, so without CORS configuration the browser would block every API request.
+
+### The fix — in `app/main.py`:
+
+```python
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],  # React dev server
+    allow_methods=["*"],   # GET, POST, PUT, DELETE
+    allow_headers=["*"],
+)
+```
+
+FastAPI includes `CORSMiddleware` out of the box — no extra library needed. This middleware adds the correct `Access-Control-Allow-Origin` headers to every response, telling the browser it is safe to proceed.
+
+---
+
+## 9. API Design
 
 The API follows REST conventions with 7 endpoints:
 
@@ -200,7 +281,7 @@ The API follows REST conventions with 7 endpoints:
 
 ---
 
-## 8. How Request Validation Works
+## 10. How Request Validation Works
 
 One of FastAPI's most powerful features is **automatic request validation** via **Pydantic**.
 
@@ -247,7 +328,7 @@ This happens with **zero manual validation code** in the route handler.
 
 ---
 
-## 9. Automatic API Docs (`/docs`)
+## 11. Automatic API Docs (`/docs`)
 
 FastAPI automatically generates interactive API documentation from your code. There is no separate documentation file to maintain.
 
@@ -269,7 +350,7 @@ An alternative documentation UI is available at `http://localhost:8000/redoc`.
 
 ---
 
-## 10. Example Requests
+## 12. Example Requests
 
 All examples use `curl`. You can also use the interactive `/docs` page directly.
 
@@ -349,7 +430,7 @@ Expected: `422 Unprocessable Entity` with detailed error messages from Pydantic.
 
 ---
 
-## 11. Running Tests
+## 13. Running Tests
 
 The test suite uses **pytest** and FastAPI's built-in `TestClient` (powered by `httpx`). Tests run against the real application code without needing a running server.
 
@@ -371,7 +452,7 @@ Each test automatically resets the in-memory store before running, ensuring test
 
 ---
 
-## 12. Demo Walkthrough
+## 14. Demo Walkthrough
 
 The following is a suggested flow for recording a video demo.
 
